@@ -45,4 +45,16 @@ public class WalletController {
         return ResponseEntity.ok(wallets);
     }
 
+    @PutMapping("/freeze/{walletId}")
+    public ResponseEntity<Boolean> freezeAccount(@PathVariable Long walletId, Authentication auth){
+        UserResponse userResponse = authService.getProfile(auth.getName());
+        return ResponseEntity.ok(walletService.freezeWallet(walletId, userResponse.getId()));
+    }
+
+    @PutMapping("/unfreeze/{walletId}")
+    public ResponseEntity<Boolean> unfreezeAccount(@PathVariable Long walletId, Authentication auth){
+        UserResponse userResponse = authService.getProfile(auth.getName());
+        return ResponseEntity.ok(walletService.unfreezeWallet(walletId, userResponse.getId()));
+    }
+
 }

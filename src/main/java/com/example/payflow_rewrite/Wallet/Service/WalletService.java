@@ -8,6 +8,7 @@ import com.example.payflow_rewrite.Wallet.Dto.ReadWalletRequest;
 import com.example.payflow_rewrite.Wallet.Dto.WalletResponse;
 import com.example.payflow_rewrite.Wallet.Entity.WalletEntity;
 import com.example.payflow_rewrite.Wallet.Enums.CurrencyEnum;
+import com.example.payflow_rewrite.Wallet.Enums.WalletStatus;
 import com.example.payflow_rewrite.Wallet.WalletRepository.WalletRepository;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -66,5 +67,30 @@ public class WalletService {
                 .status(wallet.getStatus())
                 .createdAt(wallet.getCreatedAt())
                 .build();
+    }
+
+    @Transactional
+    public Boolean freezeWallet(Long walletId, Long userId){
+        return getaBoolean(walletId, userId, WalletStatus.ACTIVE, WalletStatus.FROZEN);
+    }
+
+    @Transactional
+    public Boolean unfreezeWallet(Long walletId, Long userId){
+        return getaBoolean(walletId, userId, WalletStatus.FROZEN, WalletStatus.ACTIVE);
+    }
+
+    private Boolean getaBoolean(Long walletId, Long userId, WalletStatus walletStatus, WalletStatus walletStatus2) {
+        WalletEntity wallet = walletRepository
+                .findByUserIdAndId(userId, walletId)
+                .orElseThrow(() ->
+                        new GlobalException(ErrorCodes.WALLET_NOT_FOUND)
+                );
+        if(wallet.getStatus() == walletStatus){
+            wallet.setStatus(walletStatus2);
+            return true;
+        }
+        else {
+            throw new GlobalException(ErrorCodes.WALLET_ALREADY_FROZEN);
+        }
     }
 }

@@ -12,6 +12,7 @@ public enum ErrorCodes {
 
     //wallet
     WALLET_ALREADY_EXIST(2001,HttpStatus.BAD_REQUEST, "Wallet already exists"),
+    WALLET_ALREADY_FROZEN(2002, HttpStatus.BAD_REQUEST, "Wallet is already frozen"),
     WALLET_NOT_FOUND(2002, HttpStatus.NOT_FOUND, "Wallet not found");
 
 
