@@ -31,7 +31,6 @@ public class TransactionService {
 
     private final WalletRepository walletRepository;
     private final TransactionRepository transactionRepository;
-    private final WalletService walletService;
 
     @Transactional
     public TransactionResponse addMoney(AddMoneyRequest req, Long walletId, Long userId){
@@ -81,8 +80,8 @@ public class TransactionService {
             return mapToResponse(existing.get());
         }
 
-        if (senderId.equals(req.getReceiverWalletId())) {
-            throw new GlobalException(ErrorCodes.WALLET_NOT_ACTIVE_RECEIVER);
+        if (Objects.equals(senderId, req.getReceiverWalletId())) {
+            throw new GlobalException(ErrorCodes.WALLET_SAME);
         }
 
         // todo: check daily limit here
@@ -90,7 +89,6 @@ public class TransactionService {
 
         // gönderen ve alıcı var mı
         WalletEntity receiverWallet = walletRepository.findById(req.getReceiverWalletId()).orElseThrow(() ->  new GlobalException(ErrorCodes.WALLET_RECEIVER_NOT_FOUND));
-
         WalletEntity senderWallet = walletRepository.findById(senderId).orElseThrow(() ->  new GlobalException(ErrorCodes.WALLET_SENDER_NOT_FOUND));
         if(!Objects.equals(senderWallet.getUserId(), userId)) throw new GlobalException(ErrorCodes.WALLET_NOT_FOUND);
 
@@ -98,6 +96,10 @@ public class TransactionService {
         if(!(senderWallet.getStatus() == WalletStatus.ACTIVE)) throw new GlobalException(ErrorCodes.WALLET_NOT_ACTIVE_SENDER);
         if(!(receiverWallet.getStatus() == WalletStatus.ACTIVE)) throw new GlobalException(ErrorCodes.WALLET_NOT_ACTIVE_RECEIVER);
 
+        // currency check
+        if (senderWallet.getCurrency() != receiverWallet.getCurrency()) {
+            throw new GlobalException(ErrorCodes.TRANSACTION_CURRENCY_MISMATCH);
+        }
         if (senderWallet.getBalance().compareTo(req.getAmount()) < 0) {
             BigDecimal missingAmount = req.getAmount().subtract(senderWallet.getBalance());
             throw new GlobalException(ErrorCodes.WALLET_BALANCE_NOT_ENOUGH ,"Balance not enough. Missing amount: " + missingAmount);
@@ -121,6 +123,15 @@ public class TransactionService {
                 .idempotencyKey(req.getIdempotencyKey())
                 .completedAt(LocalDateTime.now())
                 .build();
+
+        senderWallet.setBalance(senderBalanceAfter);
+        receiverWallet.setBalance(receiverBalanceAfter);
+
+        walletRepository.save(senderWallet);
+        walletRepository.save(receiverWallet);
+
+        transactionRepository.save(transaction);
+
         log.info("Transfer of {} from walletId={} to walletId={} completed. Sender balance: {}, Receiver balance: {}",
                 req.getAmount(), senderId, req.getReceiverWalletId(),
                 senderBalanceAfter, receiverBalanceAfter);

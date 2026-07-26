@@ -19,7 +19,9 @@ public enum ErrorCodes {
     WALLET_NOT_ACTIVE_RECEIVER(2006, HttpStatus.NOT_FOUND, "Wallet not active"),
     WALLET_SAME(2007, HttpStatus.BAD_REQUEST, "Sender and receiver cant be the same wallet"),
     WALLET_BALANCE_NOT_ENOUGH(2008, HttpStatus.BAD_REQUEST,"Balance not enough"),
-    WALLET_NOT_FOUND(2000, HttpStatus.NOT_FOUND, "Wallet not found");
+    WALLET_NOT_FOUND(2000, HttpStatus.NOT_FOUND, "Wallet not found"),
+
+    TRANSACTION_CURRENCY_MISMATCH(3000, HttpStatus.BAD_REQUEST, "Currency does not match");
 
 
     private final int code;
