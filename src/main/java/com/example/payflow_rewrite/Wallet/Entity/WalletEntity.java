@@ -20,7 +20,15 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 
-@Table(name = "wallet")
+@Table(
+        name = "wallets",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_wallet_user_currency",
+                        columnNames = {"user_id", "currency"}
+                )
+        }
+)
 public class WalletEntity {
 
 
@@ -28,7 +36,7 @@ public class WalletEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "user_id", nullable = false)
     private Long userId;
 
     @Column(nullable = false, precision = 19, scale = 4)
