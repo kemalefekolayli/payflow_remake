@@ -4,10 +4,8 @@ package com.example.payflow_rewrite.Wallet.Service;
 import com.example.payflow_rewrite.Auth.Exception.ErrorCodes;
 import com.example.payflow_rewrite.Auth.Exception.GlobalException;
 import com.example.payflow_rewrite.Wallet.Dto.CreateWalletRequest;
-import com.example.payflow_rewrite.Wallet.Dto.ReadWalletRequest;
 import com.example.payflow_rewrite.Wallet.Dto.WalletResponse;
 import com.example.payflow_rewrite.Wallet.Entity.WalletEntity;
-import com.example.payflow_rewrite.Wallet.Enums.CurrencyEnum;
 import com.example.payflow_rewrite.Wallet.Enums.WalletStatus;
 import com.example.payflow_rewrite.Wallet.WalletRepository.WalletRepository;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,14 +22,14 @@ public class WalletService {
     private final WalletRepository walletRepository;
 
     @Transactional
-    public WalletResponse createWallet(CreateWalletRequest req){
+    public WalletResponse createWallet(CreateWalletRequest req, Long userId){
         // check if wallet exists for that user for that currency
         if(walletRepository.existsByUserIdAndCurrency(req.getUserId(), req.getCurrency())){
             throw new GlobalException(ErrorCodes.WALLET_ALREADY_EXIST);
         }
 
         WalletEntity wallet = WalletEntity.builder()
-                .userId(req.getUserId())
+                .userId(userId)
                 .currency(req.getCurrency())
                 .build();
 

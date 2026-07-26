@@ -26,8 +26,9 @@ public class WalletController {
 
     @Transactional
     @PostMapping("/create")
-    public ResponseEntity<WalletResponse> createWallet(@Valid @RequestBody CreateWalletRequest createWalletRequest){
-        WalletResponse response = walletService.createWallet(createWalletRequest);
+    public ResponseEntity<WalletResponse> createWallet(@Valid @RequestBody CreateWalletRequest createWalletRequest, Authentication auth){
+        UserResponse userResponse = authService.getProfile(auth.getName());
+        WalletResponse response = walletService.createWallet(createWalletRequest, userResponse.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

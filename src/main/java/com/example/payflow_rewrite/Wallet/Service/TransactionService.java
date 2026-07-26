@@ -17,6 +17,7 @@ import com.example.payflow_rewrite.Wallet.WalletRepository.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -32,6 +33,7 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final WalletService walletService;
 
+    @Transactional
     public TransactionResponse addMoney(AddMoneyRequest req, Long walletId){
         //check if idempotency key exists in db
         Optional<TransactionEntity> existing = transactionRepository.findByIdempotencyKey(req.getIdempotencyKey());
@@ -69,6 +71,7 @@ public class TransactionService {
         return mapToResponse(transaction);
     }
 
+    @Transactional
     public TransactionResponse sendMoney(SendMoneyRequest req, Long senderId){
 
         Optional<TransactionEntity> existing = transactionRepository.findByIdempotencyKey(req.getIdempotencyKey());

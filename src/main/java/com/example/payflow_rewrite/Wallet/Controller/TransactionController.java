@@ -10,10 +10,7 @@ import com.example.payflow_rewrite.Wallet.Service.TransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/transaction")
@@ -23,13 +20,13 @@ public class TransactionController {
     private final TransactionService transactionService;
 
     @PostMapping("/{walletId}/add-money")
-    public ResponseEntity<TransactionResponse> addMoney(@Valid AddMoneyRequest req, @PathVariable Long walletId){
+    public ResponseEntity<TransactionResponse> addMoney(@Valid @RequestBody AddMoneyRequest req, @PathVariable Long walletId){
         TransactionResponse response = transactionService.addMoney(req,walletId);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{walletId}/send-money")
-    public ResponseEntity<TransactionResponse> sendMoney(@Valid SendMoneyRequest req, @PathVariable Long walletId){
+    public ResponseEntity<TransactionResponse> sendMoney(@Valid @RequestBody SendMoneyRequest req, @PathVariable Long walletId){
         TransactionResponse response = transactionService.sendMoney(req,walletId);
         return ResponseEntity.ok(response);
     }
