@@ -24,7 +24,7 @@ public class WalletService {
     @Transactional
     public WalletResponse createWallet(CreateWalletRequest req, Long userId){
         // check if wallet exists for that user for that currency
-        if(walletRepository.existsByUserIdAndCurrency(req.getUserId(), req.getCurrency())){
+        if(walletRepository.existsByUserIdAndCurrency(userId, req.getCurrency())){
             throw new GlobalException(ErrorCodes.WALLET_ALREADY_EXIST);
         }
 

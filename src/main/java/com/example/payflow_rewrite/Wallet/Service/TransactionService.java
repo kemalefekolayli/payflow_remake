@@ -6,7 +6,6 @@ import com.example.payflow_rewrite.Auth.Exception.GlobalException;
 import com.example.payflow_rewrite.Wallet.Dto.AddMoneyRequest;
 import com.example.payflow_rewrite.Wallet.Dto.SendMoneyRequest;
 import com.example.payflow_rewrite.Wallet.Dto.TransactionResponse;
-import com.example.payflow_rewrite.Wallet.Dto.WalletResponse;
 import com.example.payflow_rewrite.Wallet.Entity.TransactionEntity;
 import com.example.payflow_rewrite.Wallet.Entity.WalletEntity;
 import com.example.payflow_rewrite.Wallet.Enums.TransactionStatus;
@@ -21,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,7 +34,7 @@ public class TransactionService {
     private final WalletService walletService;
 
     @Transactional
-    public TransactionResponse addMoney(AddMoneyRequest req, Long walletId){
+    public TransactionResponse addMoney(AddMoneyRequest req, Long walletId, Long userId){
         //check if idempotency key exists in db
         Optional<TransactionEntity> existing = transactionRepository.findByIdempotencyKey(req.getIdempotencyKey());
         if(existing.isPresent()){
@@ -44,7 +44,8 @@ public class TransactionService {
 
         // check if wallet exists
         WalletEntity walletEntity = walletRepository.findById(walletId).orElseThrow(() ->  new GlobalException(ErrorCodes.WALLET_NOT_FOUND));
-
+        // check if sender wallet is owned by user
+        if(!Objects.equals(walletEntity.getUserId(), userId)) throw new GlobalException(ErrorCodes.WALLET_NOT_FOUND);
         // todo: lock mechanism to be added somewhere here
 
         BigDecimal balanceBefore = walletEntity.getBalance();
@@ -72,7 +73,7 @@ public class TransactionService {
     }
 
     @Transactional
-    public TransactionResponse sendMoney(SendMoneyRequest req, Long senderId){
+    public TransactionResponse sendMoney(SendMoneyRequest req, Long senderId, Long userId){
 
         Optional<TransactionEntity> existing = transactionRepository.findByIdempotencyKey(req.getIdempotencyKey());
         if (existing.isPresent()) {
@@ -89,8 +90,9 @@ public class TransactionService {
 
         // gönderen ve alıcı var mı
         WalletEntity receiverWallet = walletRepository.findById(req.getReceiverWalletId()).orElseThrow(() ->  new GlobalException(ErrorCodes.WALLET_RECEIVER_NOT_FOUND));
-        WalletEntity senderWallet = walletRepository.findById(senderId).orElseThrow(() ->  new GlobalException(ErrorCodes.WALLET_SENDER_NOT_FOUND));
 
+        WalletEntity senderWallet = walletRepository.findById(senderId).orElseThrow(() ->  new GlobalException(ErrorCodes.WALLET_SENDER_NOT_FOUND));
+        if(!Objects.equals(senderWallet.getUserId(), userId)) throw new GlobalException(ErrorCodes.WALLET_NOT_FOUND);
 
         // check if sender is active
         if(!(senderWallet.getStatus() == WalletStatus.ACTIVE)) throw new GlobalException(ErrorCodes.WALLET_NOT_ACTIVE_SENDER);
