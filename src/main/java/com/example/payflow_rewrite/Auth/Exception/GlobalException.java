@@ -7,7 +7,12 @@
         private final ErrorCodes errorCode;
 
         public GlobalException( ErrorCodes errorCode) {
+            super(errorCode.getMessage());
+            this.errorCode = errorCode;
+        }
 
+        public GlobalException(ErrorCodes errorCode, String message) {
+            super(message);
             this.errorCode = errorCode;
         }
 

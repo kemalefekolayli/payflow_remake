@@ -13,7 +13,13 @@ public enum ErrorCodes {
     //wallet
     WALLET_ALREADY_EXIST(2001,HttpStatus.BAD_REQUEST, "Wallet already exists"),
     WALLET_ALREADY_FROZEN(2002, HttpStatus.BAD_REQUEST, "Wallet is already frozen"),
-    WALLET_NOT_FOUND(2002, HttpStatus.NOT_FOUND, "Wallet not found");
+    WALLET_SENDER_NOT_FOUND(2003, HttpStatus.NOT_FOUND, "Wallet not found - sender"),
+    WALLET_RECEIVER_NOT_FOUND(2004, HttpStatus.NOT_FOUND, "Wallet not found - receiver"),
+    WALLET_NOT_ACTIVE_SENDER(2005, HttpStatus.NOT_FOUND, "Wallet not active"),
+    WALLET_NOT_ACTIVE_RECEIVER(2006, HttpStatus.NOT_FOUND, "Wallet not active"),
+    WALLET_SAME(2007, HttpStatus.BAD_REQUEST, "Sender and receiver cant be the same wallet"),
+    WALLET_BALANCE_NOT_ENOUGH(2008, HttpStatus.BAD_REQUEST,"Balance not enough"),
+    WALLET_NOT_FOUND(2000, HttpStatus.NOT_FOUND, "Wallet not found");
 
 
     private final int code;
