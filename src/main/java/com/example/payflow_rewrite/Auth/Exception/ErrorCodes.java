@@ -21,6 +21,7 @@ public enum ErrorCodes {
     WALLET_BALANCE_NOT_ENOUGH(2008, HttpStatus.BAD_REQUEST,"Balance not enough"),
     WALLET_NOT_FOUND(2000, HttpStatus.NOT_FOUND, "Wallet not found"),
 
+    TRANSACTION_NOT_FOUND(3001, HttpStatus.NOT_FOUND,"Transaction could not be found"),
     TRANSACTION_CURRENCY_MISMATCH(3000, HttpStatus.BAD_REQUEST, "Currency does not match");
 
 

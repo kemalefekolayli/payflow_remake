@@ -4,6 +4,7 @@ package com.example.payflow_rewrite.Wallet.Service;
 import com.example.payflow_rewrite.Auth.Exception.ErrorCodes;
 import com.example.payflow_rewrite.Auth.Exception.GlobalException;
 import com.example.payflow_rewrite.Wallet.Dto.AddMoneyRequest;
+import com.example.payflow_rewrite.Wallet.Dto.PagedResponse;
 import com.example.payflow_rewrite.Wallet.Dto.SendMoneyRequest;
 import com.example.payflow_rewrite.Wallet.Dto.TransactionResponse;
 import com.example.payflow_rewrite.Wallet.Entity.TransactionEntity;
@@ -13,6 +14,8 @@ import com.example.payflow_rewrite.Wallet.Enums.TransactionType;
 import com.example.payflow_rewrite.Wallet.Enums.WalletStatus;
 import com.example.payflow_rewrite.Wallet.WalletRepository.TransactionRepository;
 import com.example.payflow_rewrite.Wallet.WalletRepository.WalletRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,9 +23,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -42,10 +47,9 @@ public class TransactionService {
         }
 
         // check if wallet exists
-        WalletEntity walletEntity = walletRepository.findById(walletId).orElseThrow(() ->  new GlobalException(ErrorCodes.WALLET_NOT_FOUND));
+        WalletEntity walletEntity = walletRepository.findByIdWithLock(walletId).orElseThrow(() ->  new GlobalException(ErrorCodes.WALLET_NOT_FOUND));
         // check if sender wallet is owned by user
         if(!Objects.equals(walletEntity.getUserId(), userId)) throw new GlobalException(ErrorCodes.WALLET_NOT_FOUND);
-        // todo: lock mechanism to be added somewhere here
 
         BigDecimal balanceBefore = walletEntity.getBalance();
         BigDecimal balanceAfter = balanceBefore.add(req.getAmount());
@@ -74,6 +78,7 @@ public class TransactionService {
     @Transactional
     public TransactionResponse sendMoney(SendMoneyRequest req, Long senderId, Long userId){
 
+
         Optional<TransactionEntity> existing = transactionRepository.findByIdempotencyKey(req.getIdempotencyKey());
         if (existing.isPresent()) {
             log.info("Cant send money. Idempotent request detected for key={}, returning existing transaction id={}", req.getIdempotencyKey(), existing.get().getId());
@@ -85,12 +90,33 @@ public class TransactionService {
         }
 
         // todo: check daily limit here
-        // todo: locking here
 
-        // gönderen ve alıcı var mı
-        WalletEntity receiverWallet = walletRepository.findById(req.getReceiverWalletId()).orElseThrow(() ->  new GlobalException(ErrorCodes.WALLET_RECEIVER_NOT_FOUND));
-        WalletEntity senderWallet = walletRepository.findById(senderId).orElseThrow(() ->  new GlobalException(ErrorCodes.WALLET_SENDER_NOT_FOUND));
-        if(!Objects.equals(senderWallet.getUserId(), userId)) throw new GlobalException(ErrorCodes.WALLET_NOT_FOUND);
+
+        Long receiverId = req.getReceiverWalletId();
+
+        Long firstLockId = Math.min(senderId, receiverId);
+        Long secondLockId = Math.max(senderId, receiverId);
+
+        WalletEntity firstLockedWallet = walletRepository.findByIdWithLock(firstLockId)
+                .orElseThrow(() -> new GlobalException(ErrorCodes.WALLET_NOT_FOUND));
+
+        WalletEntity secondLockedWallet = walletRepository.findByIdWithLock(secondLockId)
+                .orElseThrow(() -> new GlobalException(ErrorCodes.WALLET_NOT_FOUND));
+
+        WalletEntity senderWallet;
+        WalletEntity receiverWallet;
+
+        if (firstLockedWallet.getId().equals(senderId)) {
+            senderWallet = firstLockedWallet;
+            receiverWallet = secondLockedWallet;
+        } else {
+            senderWallet = secondLockedWallet;
+            receiverWallet = firstLockedWallet;
+        }
+
+        if (!Objects.equals(senderWallet.getUserId(), userId)) {
+            throw new GlobalException(ErrorCodes.WALLET_NOT_FOUND);
+        }
 
         // check if sender is active
         if(!(senderWallet.getStatus() == WalletStatus.ACTIVE)) throw new GlobalException(ErrorCodes.WALLET_NOT_ACTIVE_SENDER);
@@ -137,6 +163,32 @@ public class TransactionService {
                 senderBalanceAfter, receiverBalanceAfter);
 
         return mapToResponse(transaction);
+    }
+
+    @Transactional(readOnly = true)
+    public TransactionResponse getTransaction(Long transactionId) {
+        TransactionEntity transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new GlobalException(ErrorCodes.TRANSACTION_NOT_FOUND));
+        return mapToResponse(transaction);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<TransactionResponse> getTransactionHistory(Long walletId, Pageable pageable) {
+        Page<TransactionEntity> page = transactionRepository
+                .findBySenderWalletIdOrReceiverWalletId(walletId, walletId, pageable);
+
+        List<TransactionResponse> content = page.getContent().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        return PagedResponse.<TransactionResponse>builder()
+                .content(content)
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .last(page.isLast())
+                .build();
     }
 
     private TransactionResponse mapToResponse(TransactionEntity transaction) {
