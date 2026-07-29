@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: ${AUTH_DB_URL:jdbc:postgresql://localhost:5432/auth_db}
+    username: ${AUTH_DB_USERNAME:payflow}
+    password: ${AUTH_DB_PASSWORD:payflow}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+server:
+  port: ${AUTH_SERVICE_PORT:8081}
+
+jwt:
+  secret: ${JWT_SECRET:cGF5Zmxvdy1kZXZlbG9wbWVudC1zZWNyZXQta2V5LW11c3QtYmUtMzItYnl0ZXMtbG9uZw==}
+  expiration: ${JWT_EXPIRATION:3600000}
