@@ -12,7 +12,8 @@ public enum ErrorCodes {
     WALLET_SAME(2007, HttpStatus.BAD_REQUEST, "Sender and receiver cant be the same wallet"),
     WALLET_BALANCE_NOT_ENOUGH(2008, HttpStatus.BAD_REQUEST, "Balance not enough"),
     TRANSACTION_CURRENCY_MISMATCH(3000, HttpStatus.BAD_REQUEST, "Currency does not match"),
-    TRANSACTION_NOT_FOUND(3001, HttpStatus.NOT_FOUND, "Transaction could not be found");
+    TRANSACTION_NOT_FOUND(3001, HttpStatus.NOT_FOUND, "Transaction could not be found"),
+    LEDGER_NOT_BALANCED(4000, HttpStatus.BAD_REQUEST, "Ledger error occured");
 
     private final int code;
     private final HttpStatus status;

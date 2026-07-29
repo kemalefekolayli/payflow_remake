@@ -1,12 +1,9 @@
 package com.example.payflow.payment.service;
 
 
+import com.example.payflow.payment.dto.*;
 import com.example.payflow.payment.error.ErrorCodes;
 import com.example.payflow.payment.error.GlobalException;
-import com.example.payflow.payment.dto.AddMoneyRequest;
-import com.example.payflow.payment.dto.PagedResponse;
-import com.example.payflow.payment.dto.SendMoneyRequest;
-import com.example.payflow.payment.dto.TransactionResponse;
 import com.example.payflow.payment.entity.TransactionEntity;
 import com.example.payflow.payment.entity.WalletEntity;
 import com.example.payflow.payment.enums.TransactionStatus;
@@ -36,9 +33,11 @@ public class TransactionService {
 
     private final WalletRepository walletRepository;
     private final TransactionRepository transactionRepository;
-
+    private final LedgerService ledgerService;
     @Transactional
     public TransactionResponse addMoney(AddMoneyRequest req, Long walletId, Long userId){
+        // todo : SYSTEM ACCOUNT FOR EVERY CURRENY AND USE IT AS THE DEBIT FOR THE LEGDER
+        //  FOR NOW WE CREATE MONEY OUT OF THIN AIR WITH THIS ENDPOINT
         //check if idempotency key exists in db
         Optional<TransactionEntity> existing = transactionRepository.findByIdempotencyKey(req.getIdempotencyKey());
         if(existing.isPresent()){
@@ -157,6 +156,22 @@ public class TransactionService {
         walletRepository.save(receiverWallet);
 
         transactionRepository.save(transaction);
+
+        transaction = transactionRepository.save(transaction);
+
+        LedgerEntryRequest ledgerRequest = LedgerEntryRequest.builder()
+                .transactionId(transaction.getId())
+                .senderWalletId(senderWallet.getId())
+                .receiverWalletId(receiverWallet.getId())
+                .amount(req.getAmount())
+                .currency(senderWallet.getCurrency())
+                .senderBalanceBefore(senderBalanceBefore)
+                .senderBalanceAfter(senderBalanceAfter)
+                .receiverBalanceBefore(receiverBalanceBefore)
+                .receiverBalanceAfter(receiverBalanceAfter)
+                .build();
+
+        ledgerService.createLedgerEntry(ledgerRequest);
 
         log.info("Transfer of {} from walletId={} to walletId={} completed. Sender balance: {}, Receiver balance: {}",
                 req.getAmount(), senderId, req.getReceiverWalletId(),
