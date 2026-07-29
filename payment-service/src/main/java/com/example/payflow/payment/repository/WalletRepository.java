@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 
 @Repository
@@ -20,6 +21,8 @@ public interface WalletRepository extends JpaRepository<WalletEntity, Long> {
     Optional<WalletEntity> findByUserIdAndId(Long userId, Long walletId);
 
     List<WalletEntity> findAllByUserId(Long userId);
+
+    boolean existsByIdInAndUserId(Collection<Long> walletIds, Long userId);
 
     Optional<WalletEntity> findById(Long walletId);
 

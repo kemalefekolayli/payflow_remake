@@ -2,12 +2,15 @@ package com.example.payflow.payment;
 
 import com.example.payflow.payment.error.ErrorCodes;
 import com.example.payflow.payment.error.GlobalException;
+import com.example.payflow.payment.entity.OutboxEventEntity;
 import com.example.payflow.payment.dto.AddMoneyRequest;
 import com.example.payflow.payment.dto.CreateWalletRequest;
 import com.example.payflow.payment.dto.SendMoneyRequest;
 import com.example.payflow.payment.dto.TransactionResponse;
 import com.example.payflow.payment.dto.WalletResponse;
 import com.example.payflow.payment.enums.CurrencyEnum;
+import com.example.payflow.payment.enums.OutboxStatus;
+import com.example.payflow.payment.repository.OutboxEventRepository;
 import com.example.payflow.payment.service.TransactionService;
 import com.example.payflow.payment.service.WalletService;
 import org.junit.jupiter.api.Test;
@@ -29,6 +32,9 @@ class PaymentServiceIntegrationTest {
 
     @Autowired
     private TransactionService transactionService;
+
+    @Autowired
+    private OutboxEventRepository outboxEventRepository;
 
     @Test
     void walletTransferPreservesOwnershipLockingAndIdempotencyBehavior() {
@@ -60,6 +66,12 @@ class PaymentServiceIntegrationTest {
         TransactionResponse replay = transactionService.sendMoney(transferRequest, sender.getId(), 10L);
 
         assertThat(replay.getId()).isEqualTo(first.getId());
+        assertThat(outboxEventRepository.count()).isEqualTo(1);
+        OutboxEventEntity outboxEvent = outboxEventRepository.findAll().get(0);
+        assertThat(outboxEvent.getStatus()).isEqualTo(OutboxStatus.PENDING);
+        assertThat(outboxEvent.getRetryCount()).isZero();
+        assertThat(outboxEvent.getAggregateId()).isEqualTo(first.getId());
+        assertThat(outboxEvent.getPayload()).contains(first.getTransactionRef());
         assertThat(walletService.getWalletDetail(10L, sender.getId()).getBalance())
                 .isEqualByComparingTo("70.00");
         assertThat(walletService.getWalletDetail(20L, receiver.getId()).getBalance())

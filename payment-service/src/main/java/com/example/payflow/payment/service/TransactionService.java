@@ -9,6 +9,7 @@ import com.example.payflow.payment.entity.WalletEntity;
 import com.example.payflow.payment.enums.TransactionStatus;
 import com.example.payflow.payment.enums.TransactionType;
 import com.example.payflow.payment.enums.WalletStatus;
+import com.example.payflow.payment.event.TransferCompletedEvent;
 import com.example.payflow.payment.repository.TransactionRepository;
 import com.example.payflow.payment.repository.WalletRepository;
 import org.springframework.data.domain.Page;
@@ -34,6 +35,7 @@ public class TransactionService {
     private final WalletRepository walletRepository;
     private final TransactionRepository transactionRepository;
     private final LedgerService ledgerService;
+    private final OutboxService outboxService;
     @Transactional
     public TransactionResponse addMoney(AddMoneyRequest req, Long walletId, Long userId){
         // todo : SYSTEM ACCOUNT FOR EVERY CURRENY AND USE IT AS THE DEBIT FOR THE LEGDER
@@ -172,6 +174,19 @@ public class TransactionService {
                 .build();
 
         ledgerService.createLedgerEntry(ledgerRequest);
+
+        TransferCompletedEvent transferCompletedEvent = new TransferCompletedEvent(
+                UUID.randomUUID(),
+                transaction.getId(),
+                transaction.getTransactionRef(),
+                senderWallet.getId(),
+                receiverWallet.getId(),
+                userId,
+                req.getAmount(),
+                senderWallet.getCurrency(),
+                transaction.getCompletedAt()
+        );
+        outboxService.createTransferCompletedEvent(transferCompletedEvent);
 
         log.info("Transfer of {} from walletId={} to walletId={} completed. Sender balance: {}, Receiver balance: {}",
                 req.getAmount(), senderId, req.getReceiverWalletId(),

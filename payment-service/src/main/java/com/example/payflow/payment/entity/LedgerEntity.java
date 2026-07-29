@@ -14,7 +14,9 @@ import java.math.BigDecimal;
 @Builder
 @Entity
 @Table(name = "ledger", indexes = {
-        @Index(name = "idx_transaction_ref", columnList = "transaction_ref")})
+        @Index(name = "idx_ledger_transaction_id", columnList = "transaction_id"),
+        @Index(name = "idx_ledger_wallet_id", columnList = "wallet_id")
+})
 public class LedgerEntity {
 
     @Id
@@ -29,7 +31,6 @@ public class LedgerEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    @Builder.Default
     private TransactionDirection transactionDirection;
 
     @Column(nullable = false, precision = 19, scale = 4)

@@ -1,6 +1,7 @@
 package com.example.payflow.payment.service;
 
 import com.example.payflow.payment.dto.LedgerEntryRequest;
+import com.example.payflow.payment.dto.LedgerCreationResponse;
 import com.example.payflow.payment.dto.LedgerResponse;
 import com.example.payflow.payment.entity.LedgerEntity;
 import com.example.payflow.payment.enums.CurrencyEnum;
@@ -8,8 +9,13 @@ import com.example.payflow.payment.enums.TransactionDirection;
 import com.example.payflow.payment.error.ErrorCodes;
 import com.example.payflow.payment.error.GlobalException;
 import com.example.payflow.payment.repository.LedgerRepository;
+import com.example.payflow.payment.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,9 +29,10 @@ import java.util.List;
 public class LedgerService {
 
     private final LedgerRepository ledgerRepository;
+    private final WalletRepository walletRepository;
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public LedgerResponse createLedgerEntry(LedgerEntryRequest request) {
+    public LedgerCreationResponse createLedgerEntry(LedgerEntryRequest request) {
 
         LedgerEntity debitEntry = LedgerEntity.builder()
                 .transactionId(request.getTransactionId())
@@ -53,11 +60,46 @@ public class LedgerService {
 
         ledgerRepository.saveAll(entries);
 
-        return LedgerResponse.builder()
+        return LedgerCreationResponse.builder()
                 .debitEntryId(debitEntry.getId())
                 .creditEntryId(creditEntry.getId())
                 .build();
     }
+
+    @Transactional(readOnly = true)
+    public Page<LedgerResponse> getWalletLedger(Long walletId, Long userId, Pageable pageable) {
+        walletRepository.findByUserIdAndId(userId, walletId)
+                .orElseThrow(() -> new GlobalException(ErrorCodes.WALLET_NOT_FOUND));
+
+        Pageable newestFirst = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "id")
+        );
+        return ledgerRepository.findByWalletId(walletId, newestFirst)
+                .map(this::mapToResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public List<LedgerResponse> getTransactionLedger(Long transactionId, Long userId) {
+        List<LedgerEntity> entries = ledgerRepository.findByTransactionIdOrderByIdAsc(transactionId);
+        if (entries.isEmpty()) {
+            throw new GlobalException(ErrorCodes.LEDGER_NOT_FOUND);
+        }
+
+        List<Long> involvedWalletIds = entries.stream()
+                .map(LedgerEntity::getWalletId)
+                .distinct()
+                .toList();
+        if (!walletRepository.existsByIdInAndUserId(involvedWalletIds, userId)) {
+            throw new GlobalException(ErrorCodes.WALLET_NOT_FOUND);
+        }
+
+        return entries.stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
     private void validateBalancedEntries(List<LedgerEntity> entries) {
         BigDecimal totalDebit = entries.stream()
                 .filter(entry -> entry.getTransactionDirection() == TransactionDirection.DEBIT)
@@ -72,5 +114,18 @@ public class LedgerService {
         if (totalDebit.compareTo(totalCredit) != 0) {
             throw new GlobalException(ErrorCodes.LEDGER_NOT_BALANCED);
         }
+    }
+
+    private LedgerResponse mapToResponse(LedgerEntity entry) {
+        return LedgerResponse.builder()
+                .id(entry.getId())
+                .transactionId(entry.getTransactionId())
+                .walletId(entry.getWalletId())
+                .transactionDirection(entry.getTransactionDirection())
+                .amount(entry.getAmount())
+                .currency(entry.getCurrencyEnum())
+                .balanceBefore(entry.getBalanceBefore())
+                .balanceAfter(entry.getBalanceAfter())
+                .build();
     }
 }
