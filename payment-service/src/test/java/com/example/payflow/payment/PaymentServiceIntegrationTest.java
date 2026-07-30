@@ -72,7 +72,7 @@ class PaymentServiceIntegrationTest {
         assertThat(outboxEvent.getRetryCount()).isZero();
         assertThat(outboxEvent.getAggregateId()).isEqualTo(first.getId());
         assertThat(outboxEvent.getPayload()).contains(first.getTransactionRef());
-        assertThat(outboxEventRepository.lockPendingBatch(10))
+        assertThat(outboxEventRepository.findReadyEvents(10))
                 .extracting(OutboxEventEntity::getId)
                 .containsExactly(outboxEvent.getId());
         assertThat(walletService.getWalletDetail(10L, sender.getId()).getBalance())

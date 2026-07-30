@@ -8,6 +8,15 @@ spring:
     hibernate:
       ddl-auto: create-drop
     open-in-view: false
+  kafka:
+    bootstrap-servers: localhost:9092
 
 jwt:
   secret: cGF5Zmxvdy10ZXN0LXNlY3JldC1rZXktbXVzdC1iZS1sb25nLWVub3VnaC0zMi1ieXRlcw==
+
+outbox:
+  worker:
+    enabled: false
+    delay-ms: 1000
+    batch-size: 10
+    max-retries: 3

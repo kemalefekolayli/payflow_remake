@@ -1,24 +1,22 @@
-package com.example.payflow.payment.repository;
+package com.example.payflow.notification.repository;
 
-import com.example.payflow.payment.entity.OutboxEventEntity;
+import com.example.payflow.notification.entity.NotificationEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-@Repository
-public interface OutboxEventRepository extends JpaRepository<OutboxEventEntity, Long> {
+public interface NotificationRepository extends JpaRepository<NotificationEntity, Long> {
 
     @Query(value = """
             SELECT *
-            FROM outbox_events
+            FROM notifications
             WHERE status = 'PENDING'
               AND next_attempt_at <= CURRENT_TIMESTAMP
             ORDER BY created_at ASC
             LIMIT :batchSize
             FOR UPDATE SKIP LOCKED
             """, nativeQuery = true)
-    List<OutboxEventEntity> findReadyEvents(@Param("batchSize") int batchSize);
+    List<NotificationEntity> findReadyBatchForUpdate(@Param("batchSize") int batchSize);
 }

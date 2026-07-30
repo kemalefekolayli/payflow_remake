@@ -1,15 +1,7 @@
 package com.example.payflow.payment.entity;
 
 import com.example.payflow.payment.enums.OutboxStatus;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,10 +16,15 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "outbox_events", indexes = {
-        @Index(name = "idx_outbox_status", columnList = "status"),
-        @Index(name = "idx_outbox_created_at", columnList = "created_at")
-})
+@Table(
+        name = "outbox_events",
+        indexes = {
+                @Index(
+                        name = "idx_outbox_ready",
+                        columnList = "status,next_attempt_at,created_at"
+                )
+        }
+)
 public class OutboxEventEntity {
 
     @Id
@@ -61,6 +58,13 @@ public class OutboxEventEntity {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Builder.Default
+    @Column(name = "next_attempt_at", nullable = false)
+    private LocalDateTime nextAttemptAt = LocalDateTime.now();
+
+    @Column(name = "last_error", columnDefinition = "TEXT")
+    private String lastError;
 
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
