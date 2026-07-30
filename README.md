@@ -1,10 +1,24 @@
 # PayFlow (Remake)
 
-PayFlow is a learning-focused, multi-service wallet and payment backend built around transactional correctness, reliable event delivery, and explicit failure handling.
+PayFlow is a learning-focused, multi-service wallet and payment backend built to explore transactional correctness, reliable event delivery, concurrency control, and explicit failure handling. More than a CRUD sample, its transfer flow coordinates ownership validation, deterministic pessimistic locking, balance mutation, transaction persistence, balanced ledger entries, and outbox creation in one local transaction.
 
-The project is intentionally more than a CRUD sample. Its main transfer path coordinates wallet ownership checks, deterministic pessimistic locking, balance changes, transaction persistence, double-entry ledger records, and transactional outbox creation in one local database transaction. A background publisher sends committed events to Kafka, and an independent notification service consumes them idempotently and processes delivery retries.
+Committed transfer events are published asynchronously to Kafka; notification-service consumes them idempotently and retries delivery failures. PayFlow is a self-learning system, not production-ready banking software; see [Known limitations and future improvements](#known-limitations-and-future-improvements).
 
-PayFlow is not presented as production-ready banking software. The [Known limitations and future improvements](#known-limitations-and-future-improvements) section documents the remaining gaps.
+## Core Reliability Features
+
+- **[Local ACID Transaction Boundary](#local-acid-transaction-boundary)** — Commits wallet updates, transaction data, balanced ledger entries, and outbox intent together or rolls them all back.
+
+- **[Idempotent HTTP Mutation Requests](#idempotent-http-mutation-requests)** — Uses required unique idempotency keys to prevent repeated add-money and transfer requests from applying twice.
+
+- **[Pessimistic Wallet Locking](#pessimistic-wallet-locking)** — Locks both wallets in deterministic ID order so concurrent transfers serialize and revalidate committed balances.
+
+- **[Balanced Transfer Ledger](#balanced-transfer-ledger)** — Records equal debit and credit entries with before-and-after balances for every wallet-to-wallet transfer.
+
+- **[Transactional Outbox](#transactional-outbox)** — Persists payment state and event intent atomically, then publishes committed events asynchronously to Kafka.
+
+- **[Retry and Exponential Backoff](#retry-and-exponential-backoff)** — Reschedules failed outbox publication and notification delivery with bounded retries and increasing delays.
+
+- **[At-Least-Once Delivery and Idempotent Consumption](#at-least-once-delivery-and-idempotent-consumption)** — Accepts possible Kafka redelivery and prevents duplicate notifications with transactional event deduplication.
 
 ## Architecture
 
@@ -155,7 +169,7 @@ sequenceDiagram
 
 The lock order uses the lower wallet ID first and the higher wallet ID second. This makes competing transfers acquire locks consistently and reduces deadlock risk.
 
-## Reliability guarantees
+## Reliability Details
 
 ### Local ACID transaction boundary
 
@@ -640,12 +654,6 @@ PostgreSQL and Kafka cannot normally participate in one simple local transaction
 ### Why is notification delivery asynchronous?
 
 Email delivery is slower and less reliable than the payment database transaction. Moving it behind Kafka keeps external-delivery failures out of the money movement path and allows independent retries without holding the HTTP request open.
-
-## CV-ready project summary
-
-- Built a Spring Boot multi-service wallet backend with local JWT validation, wallet-mutation ownership enforcement, deterministic pessimistic locking, HTTP idempotency, and atomic sender/receiver balance updates.
-- Implemented transfer-level double-entry ledger validation and a PostgreSQL transactional outbox with Kafka publishing, acknowledgement handling, `SKIP LOCKED` batching, and exponential retry.
-- Developed an idempotent Kafka notification consumer with transactional deduplication, independent database ownership, retryable asynchronous delivery, and rollback-focused tests.
 
 ## Learning Project and AI Usage
 
