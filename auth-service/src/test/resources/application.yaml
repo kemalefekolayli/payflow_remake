@@ -10,5 +10,5 @@ spring:
     open-in-view: false
 
 jwt:
-  secret: cGF5Zmxvdy10ZXN0LXNlY3JldC1rZXktbXVzdC1iZS1sb25nLWVub3VnaC0zMi1ieXRlcw==
+  secret: cGF5dHJhbnMtdGVzdC1zZWNyZXQta2V5LW11c3QtYmUtbG9uZy1lbm91Z2gtMzItYnl0ZXM=
   expiration: 3600000

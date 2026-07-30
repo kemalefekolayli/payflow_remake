@@ -11,11 +11,11 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.example.payflow</groupId>
-    <artifactId>payflow-platform</artifactId>
+    <groupId>com.example.paytrans</groupId>
+    <artifactId>paytrans-platform</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>payflow-platform</name>
+    <name>PayTrans</name>
 
     <modules>
         <module>auth-service</module>

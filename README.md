@@ -1,8 +1,8 @@
-# PayFlow (Remake)
+# PayTrans
 
-PayFlow is a learning-focused, multi-service wallet and payment backend built to explore transactional correctness, reliable event delivery, concurrency control, and explicit failure handling. More than a CRUD sample, its transfer flow coordinates ownership validation, deterministic pessimistic locking, balance mutation, transaction persistence, balanced ledger entries, and outbox creation in one local transaction.
+PayTrans is a learning-focused, multi-service wallet and payment backend built to explore transactional correctness, reliable event delivery, concurrency control, and explicit failure handling. More than a CRUD sample, its transfer flow coordinates ownership validation, deterministic pessimistic locking, balance mutation, transaction persistence, balanced ledger entries, and outbox creation in one local transaction.
 
-Committed transfer events are published asynchronously to Kafka; notification-service consumes them idempotently and retries delivery failures. PayFlow is a self-learning system, not production-ready banking software; see [Known limitations and future improvements](#known-limitations-and-future-improvements).
+Committed transfer events are published asynchronously to Kafka; notification-service consumes them idempotently and retries delivery failures. PayTrans is a self-learning system, not production-ready banking software; see [Known limitations and future improvements](#known-limitations-and-future-improvements).
 
 ## Core Reliability Features
 
@@ -24,9 +24,9 @@ Committed transfer events are published asynchronously to Kafka; notification-se
 
 | Service | Port | Responsibility | Database |
 | --- | ---: | --- | --- |
-| `auth-service` | `8081` | Registration, login, BCrypt password hashing, JWT creation, user profiles | `auth_db` |
-| `payment-service` | `8082` | Wallets, balance mutations, transfers, transaction history, transfer ledger, outbox publishing | `payment_db` |
-| `notification-service` | `8083` | Kafka consumption, event deduplication, notification persistence, retryable delivery | `notification_db` |
+| `auth-service` | `8081` | Registration, login, BCrypt password hashing, JWT creation, user profiles | `paytrans_auth` |
+| `payment-service` | `8082` | Wallets, balance mutations, transfers, transaction history, transfer ledger, outbox publishing | `paytrans_payment` |
+| `notification-service` | `8083` | Kafka consumption, event deduplication, notification persistence, retryable delivery | `paytrans_notification` |
 
 Each service owns its entities and repositories. Services do not import one another's persistence models and do not query another service's database.
 
@@ -38,14 +38,14 @@ flowchart LR
         AuthAPI[Registration and login]
         JWT[JWT issuer]
     end
-    AuthDB[(auth_db)]
+    AuthDB[(paytrans_auth)]
 
     subgraph Payment["payment-service :8082"]
         PaymentAPI[Wallet and payment API]
         Transfer[Transactional transfer service]
         OutboxWorker[Outbox publisher worker]
     end
-    PaymentDB[(payment_db<br/>wallets, transactions,<br/>ledger, outbox_events)]
+    PaymentDB[(paytrans_payment<br/>wallets, transactions,<br/>ledger, outbox_events)]
 
     Kafka[(External Kafka broker<br/>payment.transfer-completed)]
 
@@ -55,7 +55,7 @@ flowchart LR
         DeliveryWorker[Delivery worker]
         Email[LoggingEmailSender]
     end
-    NotificationDB[(notification_db<br/>processed_events, notifications)]
+    NotificationDB[(paytrans_notification<br/>processed_events, notifications)]
 
     Client -->|register / login| AuthAPI
     AuthAPI --> AuthDB
@@ -85,7 +85,7 @@ flowchart LR
 
 ### Event flow
 
-1. A successful transfer creates a `TRANSFER_COMPLETED` outbox row inside `payment_db`.
+1. A successful transfer creates a `TRANSFER_COMPLETED` outbox row inside `paytrans_payment`.
 2. The payment outbox worker polls ready `PENDING` rows using `FOR UPDATE SKIP LOCKED`.
 3. It publishes the existing JSON payload to `payment.transfer-completed`, using `eventId` as the Kafka message key, and waits for broker acknowledgement.
 4. `notification-service` deserializes the payload into its own local `TransferCompletedEvent` DTO.
@@ -116,13 +116,13 @@ The following sequence describes `POST /api/transaction/{walletId}/send-money`.
 sequenceDiagram
     actor Client
     participant Auth as auth-service
-    participant AuthDB as auth_db
+    participant AuthDB as paytrans_auth
     participant Payment as payment-service
-    participant PaymentDB as payment_db
+    participant PaymentDB as paytrans_payment
     participant Publisher as outbox worker
     participant Kafka as external Kafka
     participant Consumer as notification listener
-    participant NotificationDB as notification_db
+    participant NotificationDB as paytrans_notification
     participant Delivery as delivery worker
     participant Email as LoggingEmailSender
 
@@ -173,7 +173,7 @@ The lock order uses the lower wallet ID first and the higher wallet ID second. T
 
 ### Local ACID transaction boundary
 
-For a wallet-to-wallet transfer, these operations share one `payment_db` transaction:
+For a wallet-to-wallet transfer, these operations share one `paytrans_payment` transaction:
 
 - sender balance update;
 - receiver balance update;
@@ -207,7 +207,7 @@ This is currently a transfer ledger, not a complete accounting system: `add-mone
 
 ### Transactional outbox
 
-PayFlow does not perform a database write followed by a direct Kafka write in the HTTP transaction. Instead, it commits the domain changes and a `PENDING` outbox row atomically. A scheduled worker later publishes committed rows.
+PayTrans does not perform a database write followed by a direct Kafka write in the HTTP transaction. Instead, it commits the domain changes and a `PENDING` outbox row atomically. A scheduled worker later publishes committed rows.
 
 Ready outbox rows are selected oldest-first with:
 
@@ -235,7 +235,7 @@ Outbox publishing and notification delivery both:
 
 ### At-least-once delivery and idempotent consumption
 
-PayFlow claims at-least-once event delivery, not exactly-once delivery.
+PayTrans claims at-least-once event delivery, not exactly-once delivery.
 
 If Kafka acknowledges a publish but the database transaction that marks the outbox row `PUBLISHED` fails, the row remains eligible and can be published again. Likewise, a notification can be stored successfully before the Kafka consumer offset is committed, causing Kafka to redeliver the event.
 
@@ -296,7 +296,7 @@ It has a local copy of the event DTO and does not import payment entities. It ma
 
 ### Why repositories are not shared
 
-Sharing repositories or entities would let one service bypass another service's ownership and consistency boundary, couple deployments to the same schema, and turn separate services into a distributed monolith. PayFlow communicates identity through signed JWT claims and transfer facts through Kafka events instead.
+Sharing repositories or entities would let one service bypass another service's ownership and consistency boundary, couple deployments to the same schema, and turn separate services into a distributed monolith. PayTrans communicates identity through signed JWT claims and transfer facts through Kafka events instead.
 
 ## Technology stack
 
@@ -396,9 +396,11 @@ Start each application in a separate terminal:
 
 Default local database URLs are already configured as:
 
-- `jdbc:postgresql://localhost:5432/auth_db`
-- `jdbc:postgresql://localhost:5433/payment_db`
-- `jdbc:postgresql://localhost:5434/notification_db`
+- `jdbc:postgresql://localhost:5432/paytrans_auth`
+- `jdbc:postgresql://localhost:5433/paytrans_payment`
+- `jdbc:postgresql://localhost:5434/paytrans_notification`
+
+Existing local PostgreSQL volumes created with earlier database identifiers are not migrated automatically. Back up any data you need and recreate or migrate those volumes manually before using the PayTrans database names.
 
 ### Option B: applications and databases in Docker
 
@@ -567,7 +569,7 @@ There is no notification CRUD API. Observe the logging sender:
 docker compose logs -f notification-service
 ```
 
-The current recipient is a placeholder derived from `senderUserId`, such as `user-10@payflow.local`. No real email is sent.
+The current recipient is a placeholder derived from `senderUserId`, such as `user-10@paytrans.local`. No real email is sent.
 
 ## Testing
 
@@ -610,7 +612,7 @@ These are component/integration-style Spring tests, not full end-to-end environm
 ## Repository structure
 
 ```text
-payflow-platform/
+paytrans-platform/
 ├── pom.xml
 ├── compose.yaml
 ├── .env.example
@@ -635,13 +637,13 @@ The root POM is both the parent and aggregator for all three executable Spring B
 
 ### Why carry userId in the JWT?
 
-Username is useful for display and login, but payment ownership is keyed by an immutable numeric user identity. Carrying signed `userId`, username, and role claims lets payment-service validate identity locally without querying `auth_db` or making a synchronous auth request for every operation.
+Username is useful for display and login, but payment ownership is keyed by an immutable numeric user identity. Carrying signed `userId`, username, and role claims lets payment-service validate identity locally without querying `paytrans_auth` or making a synchronous auth request for every operation.
 
 Authentication still does not prove resource ownership. Every wallet mutation must separately verify that the requested wallet belongs to `principal.userId()`.
 
 ### Why keep wallet, transaction, and ledger together?
 
-A transfer is one consistency operation. The sender debit, receiver credit, transaction record, ledger evidence, and outbox intent must either all commit or all roll back. Keeping them in `payment_db` gives the transfer one local ACID boundary.
+A transfer is one consistency operation. The sender debit, receiver credit, transaction record, ledger evidence, and outbox intent must either all commit or all roll back. Keeping them in `paytrans_payment` gives the transfer one local ACID boundary.
 
 ### Why are debit and credit not separate microservices?
 
@@ -657,7 +659,7 @@ Email delivery is slower and less reliable than the payment database transaction
 
 ## Learning Project and AI Usage
 
-PayFlow was built primarily as a self-learning project focused on backend engineering, fintech systems, distributed systems, and failure handling.
+PayTrans was built primarily as a self-learning project focused on backend engineering, fintech systems, distributed systems, and failure handling.
 
 AI coding tools were used selectively for:
 

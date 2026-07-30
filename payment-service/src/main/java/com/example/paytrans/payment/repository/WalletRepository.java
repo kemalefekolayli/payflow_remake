@@ -1,0 +1,32 @@
+package com.example.paytrans.payment.repository;
+
+import com.example.paytrans.payment.entity.WalletEntity;
+import com.example.paytrans.payment.enums.CurrencyEnum;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Collection;
+import java.util.Optional;
+
+@Repository
+public interface WalletRepository extends JpaRepository<WalletEntity, Long> {
+
+    Boolean existsByUserIdAndCurrency(Long userId, CurrencyEnum cur);
+
+    Optional<WalletEntity> findByUserIdAndId(Long userId, Long walletId);
+
+    List<WalletEntity> findAllByUserId(Long userId);
+
+    boolean existsByIdInAndUserId(Collection<Long> walletIds, Long userId);
+
+    Optional<WalletEntity> findById(Long walletId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT w FROM WalletEntity w WHERE w.id = :id")
+    Optional<WalletEntity> findByIdWithLock(@Param("id") Long id);
+}
